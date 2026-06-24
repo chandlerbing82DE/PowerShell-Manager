@@ -1,3 +1,7 @@
+<img width="1402" height="980" alt="3" src="https://github.com/user-attachments/assets/5ff024f5-6a54-4994-8736-4cc73e3b25b6" />
+<img width="1402" height="980" alt="2" src="https://github.com/user-attachments/assets/b6a45f11-51f4-4809-bdfe-43ead81e2846" />
+<img width="1402" height="980" alt="1" src="https://github.com/user-attachments/assets/d1b03b70-0af2-4ec3-b119-906dd6c5f3f6" />
+
 # PowerShellScriptAnalyzer
 
 PowerShellScriptAnalyzer is a desktop application built with C# and Windows Forms designed to audit, review, and analyze PowerShell scripts using advanced AI models. It helps administrators and developers quickly identify potential security risks, optimization opportunities, and bugs in their automation scripts.

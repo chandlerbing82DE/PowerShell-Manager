@@ -223,16 +223,16 @@ namespace PowerShellAnalyzer
             // Pierwszy wiersz: Legenda Statusów
             Label lblLegendTitle = new Label { Text = "Status Legende:", Font = boldFont, AutoSize = true, Location = new Point(0, 5) };
 
-            PictureBox picWait = new PictureBox { Image = PowerShellScriptAnalyzer.Resources.ausstehend, SizeMode = PictureBoxSizeMode.Zoom, Size = new Size(18, 18), Location = new Point(120, 5) };
+            PictureBox picWait = new PictureBox { Image = PowerShellManager.Resources.ausstehend, SizeMode = PictureBoxSizeMode.Zoom, Size = new Size(18, 18), Location = new Point(120, 5) };
             Label lblLegendWait = new Label { Text = "Ausstehend", Font = regularFont, AutoSize = true, Location = new Point(140, 4) };
 
-            PictureBox picOK = new PictureBox { Image = PowerShellScriptAnalyzer.Resources.OK, SizeMode = PictureBoxSizeMode.Zoom, Size = new Size(18, 18), Location = new Point(230, 5) };
+            PictureBox picOK = new PictureBox { Image = PowerShellManager.Resources.OK, SizeMode = PictureBoxSizeMode.Zoom, Size = new Size(18, 18), Location = new Point(230, 5) };
             Label lblLegendOK = new Label { Text = "OK", Font = regularFont, AutoSize = true, Location = new Point(250, 4) };
 
-            PictureBox picError = new PictureBox { Image = PowerShellScriptAnalyzer.Resources.Fehler, SizeMode = PictureBoxSizeMode.Zoom, Size = new Size(18, 18), Location = new Point(285, 5) };
+            PictureBox picError = new PictureBox { Image = PowerShellManager.Resources.Fehler, SizeMode = PictureBoxSizeMode.Zoom, Size = new Size(18, 18), Location = new Point(285, 5) };
             Label lblLegendError = new Label { Text = "Fehler", Font = regularFont, AutoSize = true, Location = new Point(305, 4) };
 
-            PictureBox picDup = new PictureBox { Image = PowerShellScriptAnalyzer.Resources.duplikat, SizeMode = PictureBoxSizeMode.Zoom, Size = new Size(18, 18), Location = new Point(355, 5) };
+            PictureBox picDup = new PictureBox { Image = PowerShellManager.Resources.duplikat, SizeMode = PictureBoxSizeMode.Zoom, Size = new Size(18, 18), Location = new Point(355, 5) };
             Label lblLegendDup = new Label { Text = "Duplikat", Font = regularFont, AutoSize = true, Location = new Point(375, 4) };
 
             pnlTopRightInfo.Controls.Add(lblLegendTitle);
@@ -1959,10 +1959,10 @@ namespace PowerShellAnalyzer
 
                 string status = e.Value?.ToString();
                 Image img = null;
-                if (status == "🟢") img = PowerShellScriptAnalyzer.Resources.OK;
-                else if (status == "🔴") img = PowerShellScriptAnalyzer.Resources.Fehler;
-                else if (status == "📑") img = PowerShellScriptAnalyzer.Resources.duplikat;
-                else if (status == "⏳") img = PowerShellScriptAnalyzer.Resources.ausstehend;
+                if (status == "🟢") img = PowerShellManager.Resources.OK;
+                else if (status == "🔴") img = PowerShellManager.Resources.Fehler;
+                else if (status == "📑") img = PowerShellManager.Resources.duplikat;
+                else if (status == "⏳") img = PowerShellManager.Resources.ausstehend;
 
                 if (img != null)
                 {
@@ -1987,10 +1987,10 @@ namespace PowerShellAnalyzer
                     string status = e.Value?.ToString();
                     Image img = null;
 
-                    if (status == "🟢") img = PowerShellScriptAnalyzer.Resources.OK;
-                    else if (status == "🔴") img = PowerShellScriptAnalyzer.Resources.Fehler;
-                    else if (status == "📑") img = PowerShellScriptAnalyzer.Resources.duplikat;
-                    else if (status == "⏳") img = PowerShellScriptAnalyzer.Resources.ausstehend;
+                    if (status == "🟢") img = PowerShellManager.Resources.OK;
+                    else if (status == "🔴") img = PowerShellManager.Resources.Fehler;
+                    else if (status == "📑") img = PowerShellManager.Resources.duplikat;
+                    else if (status == "⏳") img = PowerShellManager.Resources.ausstehend;
 
                     if (img != null)
                     {
@@ -2010,6 +2010,11 @@ namespace PowerShellAnalyzer
             {
                 dgvScripts.EndEdit();
             }
+        }
+
+        private void MainForm_Load(object sender, EventArgs e)
+        {
+
         }
     }
 }

@@ -57,6 +57,10 @@ namespace PowerShellAnalyzer
             tableLayoutMain = new TableLayoutPanel();
             pnlLeft = new Panel();
             dgvScripts = new DataGridView();
+            dataGridViewTextBoxColumn1 = new DataGridViewTextBoxColumn();
+            dataGridViewTextBoxColumn2 = new DataGridViewTextBoxColumn();
+            dataGridViewTextBoxColumn3 = new DataGridViewTextBoxColumn();
+            dataGridViewTextBoxColumn4 = new DataGridViewTextBoxColumn();
             pnlLeftTop = new Panel();
             lblGridTitle = new Label();
             txtSearch = new TextBox();
@@ -77,10 +81,6 @@ namespace PowerShellAnalyzer
             pnlProtocol = new Panel();
             txtProtocol = new TextBox();
             lblProtocol = new Label();
-            dataGridViewTextBoxColumn1 = new DataGridViewTextBoxColumn();
-            dataGridViewTextBoxColumn2 = new DataGridViewTextBoxColumn();
-            dataGridViewTextBoxColumn3 = new DataGridViewTextBoxColumn();
-            dataGridViewTextBoxColumn4 = new DataGridViewTextBoxColumn();
             tabBibliothek = new TabPage();
             statusStrip = new StatusStrip();
             lblStatusInfo = new ToolStripStatusLabel();
@@ -115,9 +115,9 @@ namespace PowerShellAnalyzer
             lblAppTitle.Location = new Point(23, 17);
             lblAppTitle.Margin = new Padding(4, 0, 4, 0);
             lblAppTitle.Name = "lblAppTitle";
-            lblAppTitle.Size = new Size(295, 32);
+            lblAppTitle.Size = new Size(232, 32);
             lblAppTitle.TabIndex = 0;
-            lblAppTitle.Text = "PowerShell Script Analyzer";
+            lblAppTitle.Text = "PowerShell Manager";
             // 
             // lblAppSubtitle
             // 
@@ -151,7 +151,7 @@ namespace PowerShellAnalyzer
             tabAnalyse.Location = new Point(4, 26);
             tabAnalyse.Margin = new Padding(4, 3, 4, 3);
             tabAnalyse.Name = "tabAnalyse";
-            tabAnalyse.Padding = new Padding(12, 12, 12, 12);
+            tabAnalyse.Padding = new Padding(12);
             tabAnalyse.Size = new Size(1392, 804);
             tabAnalyse.TabIndex = 0;
             tabAnalyse.Text = "Analyse";
@@ -202,6 +202,30 @@ namespace PowerShellAnalyzer
             dgvScripts.Size = new Size(858, 520);
             dgvScripts.TabIndex = 0;
             dgvScripts.CellContentClick += dgvScripts_CellContentClick;
+            // 
+            // dataGridViewTextBoxColumn1
+            // 
+            dataGridViewTextBoxColumn1.HeaderText = "Status";
+            dataGridViewTextBoxColumn1.Name = "dataGridViewTextBoxColumn1";
+            dataGridViewTextBoxColumn1.ReadOnly = true;
+            // 
+            // dataGridViewTextBoxColumn2
+            // 
+            dataGridViewTextBoxColumn2.HeaderText = "ID";
+            dataGridViewTextBoxColumn2.Name = "dataGridViewTextBoxColumn2";
+            dataGridViewTextBoxColumn2.ReadOnly = true;
+            // 
+            // dataGridViewTextBoxColumn3
+            // 
+            dataGridViewTextBoxColumn3.HeaderText = "Datei";
+            dataGridViewTextBoxColumn3.Name = "dataGridViewTextBoxColumn3";
+            dataGridViewTextBoxColumn3.ReadOnly = true;
+            // 
+            // dataGridViewTextBoxColumn4
+            // 
+            dataGridViewTextBoxColumn4.HeaderText = "Pfad";
+            dataGridViewTextBoxColumn4.Name = "dataGridViewTextBoxColumn4";
+            dataGridViewTextBoxColumn4.ReadOnly = true;
             // 
             // pnlLeftTop
             // 
@@ -337,7 +361,7 @@ namespace PowerShellAnalyzer
             btnApiKey.Name = "btnApiKey";
             btnApiKey.Size = new Size(222, 31);
             btnApiKey.TabIndex = 7;
-            btnApiKey.Text = "⚙ Konfiguruj API-Key";
+            btnApiKey.Text = "⚙ API-Schlüssel konfigurieren";
             // 
             // lblApiKeyStatus
             // 
@@ -347,9 +371,9 @@ namespace PowerShellAnalyzer
             lblApiKeyStatus.Location = new Point(244, 317);
             lblApiKeyStatus.Margin = new Padding(4, 0, 4, 0);
             lblApiKeyStatus.Name = "lblApiKeyStatus";
-            lblApiKeyStatus.Size = new Size(134, 17);
+            lblApiKeyStatus.Size = new Size(174, 17);
             lblApiKeyStatus.TabIndex = 8;
-            lblApiKeyStatus.Text = "Status: Klucz zapisany";
+            lblApiKeyStatus.Text = "Status: Schlüssel gespeichert";
             // 
             // lblDescriptionTitle
             // 
@@ -430,33 +454,9 @@ namespace PowerShellAnalyzer
             lblProtocol.Location = new Point(0, 6);
             lblProtocol.Margin = new Padding(4, 0, 4, 0);
             lblProtocol.Name = "lblProtocol";
-            lblProtocol.Size = new Size(65, 25);
+            lblProtocol.Size = new Size(65, 17);
             lblProtocol.TabIndex = 1;
             lblProtocol.Text = "Protokoll";
-            // 
-            // dataGridViewTextBoxColumn1
-            // 
-            dataGridViewTextBoxColumn1.HeaderText = "Status";
-            dataGridViewTextBoxColumn1.Name = "dataGridViewTextBoxColumn1";
-            dataGridViewTextBoxColumn1.ReadOnly = true;
-            // 
-            // dataGridViewTextBoxColumn2
-            // 
-            dataGridViewTextBoxColumn2.HeaderText = "ID";
-            dataGridViewTextBoxColumn2.Name = "dataGridViewTextBoxColumn2";
-            dataGridViewTextBoxColumn2.ReadOnly = true;
-            // 
-            // dataGridViewTextBoxColumn3
-            // 
-            dataGridViewTextBoxColumn3.HeaderText = "Datei";
-            dataGridViewTextBoxColumn3.Name = "dataGridViewTextBoxColumn3";
-            dataGridViewTextBoxColumn3.ReadOnly = true;
-            // 
-            // dataGridViewTextBoxColumn4
-            // 
-            dataGridViewTextBoxColumn4.HeaderText = "Pfad";
-            dataGridViewTextBoxColumn4.Name = "dataGridViewTextBoxColumn4";
-            dataGridViewTextBoxColumn4.ReadOnly = true;
             // 
             // tabBibliothek
             // 
@@ -496,7 +496,8 @@ namespace PowerShellAnalyzer
             MinimumSize = new Size(1164, 802);
             Name = "MainForm";
             StartPosition = FormStartPosition.CenterScreen;
-            Text = "PowerShell Script Analyzer";
+            Text = "PowerShell Manager";
+            Load += MainForm_Load;
             pnlHeader.ResumeLayout(false);
             pnlHeader.PerformLayout();
             tabControlMain.ResumeLayout(false);

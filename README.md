@@ -1,53 +1,54 @@
-<img width="1402" height="980" alt="3" src="https://github.com/user-attachments/assets/5ff024f5-6a54-4994-8736-4cc73e3b25b6" />
-<img width="1402" height="980" alt="2" src="https://github.com/user-attachments/assets/b6a45f11-51f4-4809-bdfe-43ead81e2846" />
-<img width="1402" height="980" alt="1" src="https://github.com/user-attachments/assets/d1b03b70-0af2-4ec3-b119-906dd6c5f3f6" />
+# PowerShell Manager (psmgr.exe)
 
-# PowerShellScriptAnalyzer
+## Beschreibung
+Diese Windows Forms (WinForms)-Anwendung ist ein professionelles Werkzeug zur Verwaltung, Analyse und Konsolidierung von PowerShell-Skripten. Das Tool scannt ausgewählte Quellordner (einschließlich Unterordner) nach `.ps1`-Dateien, führt eine lokale Ähnlichkeitsanalyse durch und nutzt künstliche Intelligenz (OpenAI & Google Gemini), um Skripte zu analysieren, Duplikate zu bewerten und neue Dateinamen vorzuschlagen.
 
-PowerShellScriptAnalyzer is a desktop application built with C# and Windows Forms designed to audit, review, and analyze PowerShell scripts using advanced AI models. It helps administrators and developers quickly identify potential security risks, optimization opportunities, and bugs in their automation scripts.
-
-## 🚀 Features
-
-* **Multi-LLM Integration:** Seamlessly connect with **OpenAI**, **Google Gemini**, and **Anthropic Claude** to get diverse AI perspectives on your code.
-* **Local Database Caching:** Uses a local SQLite database to store settings, configurations, and analysis results efficiently.
-* **Batch / Global Analysis:** Scan and analyze multiple scripts at once to save time.
-* **Safety Friction Mechanism:** Includes a built-in "speed bump" (PIN confirmation) for global actions to prevent accidental mass API requests and unexpected token consumption.
+Die Anwendung speichert alle Skriptinformationen, Quellpfade und virtuellen Alben in einer lokalen SQLite-Datenbank, sodass analysierte Daten nicht verloren gehen.
 
 ---
 
-## 🔒 Security & Privacy First
+## Hauptfunktionen
 
-This application is designed with repository safety in mind:
-* **Zero Hardcoded Keys:** Your API keys are **never** stored in the source code, `App.config`, or project files.
-* **Local-Only Storage:** API keys are stored securely on your local machine inside an SQLite database (`scripts_db.sqlite`) located in your user profile:
-  `%APPDATA%\PowerShellScriptAnalyzer\`
-* **GitHub Safe:** You can push this repository to GitHub without worrying about leaking your private API tokens.
+### 1. Skrypt-Analyse & Beschreibung via AI
+- Massen- oder Einzelanalyse von PowerShell-Skripten mit Modellen von **OpenAI** (z. B. GPT-4o) und **Google Gemini** (z. B. Gemini 2.5 Flash).
+- Automatische Erstellung einer prägnanten, deutschsprachigen Funktionsbeschreibung.
+- Visuelle Statusanzeige (Ausstehend ⏳, Erfolg 🟢, Fehler 🔴).
 
----
+### 2. Lokale Duplikatsuche & KI-Bereinigung
+- **Vektorisierte Ähnlichkeitsanalyse:** Berechnet kosinusbasierte Textähnlichkeiten lokal, um Skript-Duplikate in Gruppen (np. G001, G002) zusammenzufassen.
+- **Code-Vergleich (Diff-Ansicht):** Side-by-Side-Vergleich von zwei ähnlichen Skripten in einer übersichtlichen RichTextBox-Ansicht.
+- **KI-gestützte Bereinigung:** Das ausgewählte AI-Modell analysiert die Duplikate und entscheidet im JSON-Format, welches Skript behalten (z. B. wegen Modernität, Fehlerbehandlung) und welches gelöscht werden kann.
+- **Massenlöschung:** Möglichkeit, alle von der KI zum Löschen empfohlenen Duplikate mit einem Klick physisch von der Festplatte zu entfernen.
 
-## 💡 How It Works (The Global Analysis Safety PIN)
+### 3. Virtuelle Bibliothek (Alben)
+- Strukturierung von Skripten in einer hierarchischen Baumstruktur (TreeView) über Alben i Unteralben.
+- Drag-and-Drop-Unterstützung zum einfachen Verschieben von Alben und Skripten.
+- Physische Dateien bleiben an ihrem Ursprungsort – die Zuordnung erfolgt rein virtuell in der Datenbank.
 
-To prevent accidental clicks that could trigger massive re-analysis of all your scripts—potentially draining your AI API limits and raising your costs—the **Global Analysis** button requires a safety PIN confirmation. 
-
-* **Default Safety PIN:** `8203`
-
-Think of it as a friendly UI/UX "brake pedal" to give you a second to think before launching a large-scale API automated task!
-
----
-
-## 🛠️ Prerequisites
-
-* Windows OS
-* .NET Framework (or .NET Core/6+/8+ depending on your target)
-* API Keys from at least one supported provider:
-  * OpenAI API
-  * Google AI Studio (Gemini)
-  * Anthropic Console (Claude)
+### 4. Intelligente Dateiumbenennung (Rename)
+- Vorschlagen von standardisierten, professionellen Dateinamen (PowerShell Verb-Noun oder PascalCase) basierend auf der KI-Skriptbeschreibung.
+- Automatisches Hinzufügen der eindeutigen Skript-ID als Präfix (z. B. `0001_Get-ActiveDirectoryUsers.ps1`).
+- Komfortable Massenumbenennung direkt auf der Festplatte inklusive automatischer Pfadaktualisierung in der Datenbank.
 
 ---
 
-## 🚀 Getting Started
+## Technische Details & Architektur
+- **Framework:** .NET 10.0 (Windows Forms).
+- **Datenbank:** SQLite (`System.Data.SQLite.Core`), die standardmäßig im Benutzerverzeichnis (`AppData/Roaming/PowerShellScriptAnalyzer`) abgelegt wird.
+- **Modell-Vorauswahl:** Standardmäßig ist beim Start das Modell **Gemini 2.5 Flash** ausgewählt, da es das beste Preis-Leistungs-Verhältnis für Code-Analysen bietet.
+- **Sicherheitsüberprüfung (PIN):** Um eine unbeabsichtigte Massenanalyse aller Skripte (Kostenrisiko beim API-Anbieter) zu verhindern, ist die globale Analyse ohne vorherige Checkbox-Auswahl durch den PIN **`8203`** geschützt.
 
-1. **Clone the Repository:**
-   ```bash
-   git clone [https://github.com/YOUR_USERNAME/PowerShellScriptAnalyzer.git](https://github.com/YOUR_USERNAME/PowerShellScriptAnalyzer.git)
+---
+
+## Wichtige Hinweise zur Konfiguration
+1. **Einstellungen-Dialog:** API-Schlüssel für OpenAI i Google Gemini werden nicht mehr im Code hinterlegt, sondern direkt über die Schaltfläche **⚙ Einstellungen** im Hauptfenster konfiguriert i verschlüsselt in der SQLite-Datenbank gespeichert.
+2. **Datenbankverwaltung:** Im Einstellungsfenster kann der Pfad zur SQLite-Datenbank flexibel geändert, eine bestehende Datenbank geöffnet (`📂`) lub kopiert/gesichert (`💾`) werden.
+
+---
+
+## Empfohlene nächste Ausbaustufen
+- **Retry-Logik und Rate-Limit-Behandlung:** Abfangen von API-Fehlern (z. B. HTTP 429) bei sehr vielen parallelen Anfragen.
+- **Besseres Chunking / Token-Management:** Optimierte Aufteilung von extrem großen Skripten vor dem Senden an die API.
+- **Erweiterte Syntaxprüfung:** Integration von `PSScriptAnalyzer` zur lokalen Qualitäts- und Sicherheitsprüfung vor der AI-Analyse.
+- **HTML/Markdown-Report:** Exportfunktion für die gesamte Bibliothek als strukturierte Dokumentation.
+- **SHA256-Caching:** Vermeidung doppelter API-Kosten durch Erkennung identischer Datei-Hashes.

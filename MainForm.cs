@@ -1,4 +1,13 @@
+using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Drawing;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Text.Json;
+using System.Threading.Tasks;
+using System.Windows.Forms;
 
 namespace PowerShellAnalyzer
 {
@@ -12,7 +21,7 @@ namespace PowerShellAnalyzer
 
         private string apiKeyOpenAI = "";
         private string apiKeyGemini = "";
-        private string apiKeyClaude = ""; // Przygotowane na przyszłość
+        private string apiKeyClaude = "";
 
         // Biblioteka - komponenty
         private TreeView tvAlbums;
@@ -35,7 +44,6 @@ namespace PowerShellAnalyzer
                 txtProtocol.Invoke(new Action(() => LogToProtocol(message)));
                 return;
             }
-            // Wpisuje tekst do dolnego okna protokołu z aktualną godziną
             txtProtocol.AppendText($"[{DateTime.Now:HH:mm:ss}] {message}\r\n");
             txtProtocol.ScrollToCaret();
         }
@@ -53,7 +61,6 @@ namespace PowerShellAnalyzer
         protected override void OnLoad(EventArgs e)
         {
             base.OnLoad(e);
-            // NOWOŚĆ: Ładujemy zapisane foldery zaraz po starcie!
             LoadSavedSources();
         }
 
@@ -75,19 +82,17 @@ namespace PowerShellAnalyzer
             }
         }
 
-        // Nowa metoda do ładowania przy starcie
         private void LoadSavedSources()
         {
             var savedSources = DatabaseHelper.GetSources();
             foreach (var source in savedSources)
             {
-                if (System.IO.Directory.Exists(source)) // Sprawdzamy czy folder nadal istnieje na dysku
+                if (System.IO.Directory.Exists(source))
                 {
                     lstSources.Items.Add(source);
                 }
             }
 
-            // Jeśli załadowaliśmy jakieś foldery, od razu skanujemy skrypty
             if (lstSources.Items.Count > 0)
             {
                 ScanFoldersForScripts();
@@ -97,7 +102,6 @@ namespace PowerShellAnalyzer
         private void SetupCustomUI()
         {
             // --- 1. NAPRAWA NAZW KOLUMN I CZCIONKI TABELI ---
-            // Wymuszamy Segoe UI dla całej tabeli
             dgvScripts.DefaultCellStyle.Font = new Font("Segoe UI", 9.75F);
 
             if (dgvScripts.Columns.Count >= 4 && !dgvScripts.Columns.Contains("Path"))
@@ -108,12 +112,10 @@ namespace PowerShellAnalyzer
                 dgvScripts.Columns[3].Name = "Path";
             }
 
-            // Podłączamy zdarzenie do malowania ikon
             dgvScripts.CellPainting -= DgvScripts_CellPainting;
             dgvScripts.CellPainting += DgvScripts_CellPainting;
 
             // --- 2. DODANIE KOLUMNY CHECKBOX ---
-
             dgvScripts.ReadOnly = false;
             dgvScripts.EditMode = DataGridViewEditMode.EditOnEnter;
 
@@ -129,7 +131,6 @@ namespace PowerShellAnalyzer
                 dgvScripts.Columns.Insert(0, checkColumn);
             }
 
-            // Zabezpieczenie reszty kolumn przed edycją (tylko CheckBox jest klikalny)
             foreach (DataGridViewColumn col in dgvScripts.Columns)
             {
                 if (col.Name != "Select") col.ReadOnly = true;
@@ -169,14 +170,10 @@ namespace PowerShellAnalyzer
             // --- 6. MENU KONTEKSTOWE ---
             gridContextMenu = new ContextMenuStrip();
             gridContextMenu.Items.Add("Nur dieses Skript analysieren", null, ContextMenu_AnalyzeSingle);
-
             gridContextMenu.Items.Add("Pfad kopieren", null, ContextMenu_CopyPath);
-
             gridContextMenu.Items.Add(new ToolStripSeparator());
             gridContextMenu.Items.Add("Ähnliche Skripte anzeigen", null, ContextMenu_ShowSimilar);
             gridContextMenu.Items.Add("Mit ähnlichem Skript vergleichen", null, ContextMenu_CompareSimilar);
-
-            // Usunięto "Beschreibung bearbeiten" - mamy to na stałe po prawej stronie!
             gridContextMenu.Items.Add(new ToolStripSeparator());
             gridContextMenu.Items.Add("Skript öffnen", null, ContextMenu_OpenScript);
 
@@ -205,7 +202,7 @@ namespace PowerShellAnalyzer
             btnSaveDesc.Click -= BtnSaveDesc_Click;
             btnSaveDesc.Click += BtnSaveDesc_Click;
 
-            // --- 8. STATUS LEGENDE HINZUFÜGEN (Legenda na górze po prawej) ---
+            // --- 8. STATUS LEGENDE HINZUFÜGEN ---
             Panel pnlTopRightInfo = new Panel
             {
                 Width = 750,
@@ -216,11 +213,9 @@ namespace PowerShellAnalyzer
             };
             pnlHeader.Controls.Add(pnlTopRightInfo);
 
-            // Definiujemy czcionkę raz, aby użyć jej w labelach
             Font boldFont = new Font("Segoe UI", 9.75F, FontStyle.Bold);
             Font regularFont = new Font("Segoe UI", 9.75F);
 
-            // Pierwszy wiersz: Legenda Statusów
             Label lblLegendTitle = new Label { Text = "Status Legende:", Font = boldFont, AutoSize = true, Location = new Point(0, 5) };
 
             PictureBox picWait = new PictureBox { Image = PowerShellManager.Resources.ausstehend, SizeMode = PictureBoxSizeMode.Zoom, Size = new Size(18, 18), Location = new Point(120, 5) };
@@ -245,7 +240,6 @@ namespace PowerShellAnalyzer
             pnlTopRightInfo.Controls.Add(picDup);
             pnlTopRightInfo.Controls.Add(lblLegendDup);
 
-            // Drugi wiersz: Przyciski i Ähnlichkeit (Podobieństwo)
             Button btnSearchDuplicates = new Button
             {
                 Text = "Suche Duplikate",
@@ -274,14 +268,18 @@ namespace PowerShellAnalyzer
             pnlTopRightInfo.Controls.Add(lblSimilarityTitle);
             pnlTopRightInfo.Controls.Add(lblSimilarityData);
 
-            // Tymczasowe dla nienapisanych jeszcze funkcji:
-            btnCancel.Click -= (s, e) => MessageBox.Show("Aktion abgebrochen.", "Info");
-            btnCancel.Click += (s, e) => MessageBox.Show("Aktion abgebrochen.", "Info");
+            btnCancel.Click -= btnCancel_Click_Handler;
+            btnCancel.Click += btnCancel_Click_Handler;
 
             btnApiKey.Click -= BtnApiKey_Click;
             btnApiKey.Click += BtnApiKey_Click;
 
             SetupLibraryUI();
+        }
+
+        private void btnCancel_Click_Handler(object sender, EventArgs e)
+        {
+            MessageBox.Show("Aktion abgebrochen.", "Info");
         }
 
         private void SetupLibraryUI()
@@ -294,7 +292,6 @@ namespace PowerShellAnalyzer
                 BackColor = Color.White
             };
 
-            // Proporcja 40% (Albumy) do 60% (Spezifikationen)
             splitContainer.Resize += (s, e) =>
             {
                 if (splitContainer.Width > 100)
@@ -302,12 +299,10 @@ namespace PowerShellAnalyzer
                     splitContainer.SplitterDistance = (int)(splitContainer.Width * 0.40);
                 }
             };
-            // Wymuś raz zanim kontrolka się pojawi, na domyślnej szerokości ekranu (1400)
             splitContainer.SplitterDistance = (int)(1400 * 0.40);
 
             tabBibliothek.Controls.Add(splitContainer);
 
-            // Lewy panel (Drzewo)
             var pnlTree = new Panel { Dock = DockStyle.Fill, Padding = new Padding(10) };
             pnlTree.BackColor = Color.White;
             splitContainer.Panel1.Controls.Add(pnlTree);
@@ -330,7 +325,6 @@ namespace PowerShellAnalyzer
             pnlTree.Controls.Add(tvAlbums);
             tvAlbums.BringToFront();
 
-            // Prawy panel (Skrypty)
             var pnlGrid = new Panel { Dock = DockStyle.Fill, Padding = new Padding(10) };
             pnlGrid.BackColor = Color.White;
             splitContainer.Panel2.Controls.Add(pnlGrid);
@@ -361,17 +355,16 @@ namespace PowerShellAnalyzer
 
             dgvLibraryScripts.Columns.Add("Property", "Eigenschaft");
             dgvLibraryScripts.Columns["Property"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
-            dgvLibraryScripts.Columns["Property"].FillWeight = 30; // 30% z dostepnej szerokoci panela (60%) 
+            dgvLibraryScripts.Columns["Property"].FillWeight = 30;
 
             dgvLibraryScripts.Columns.Add("Value", "Wert");
             dgvLibraryScripts.Columns["Value"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
-            dgvLibraryScripts.Columns["Value"].FillWeight = 70; // 70% detalu
+            dgvLibraryScripts.Columns["Value"].FillWeight = 70;
             dgvLibraryScripts.Columns["Value"].DefaultCellStyle.WrapMode = DataGridViewTriState.True;
 
             pnlGrid.Controls.Add(dgvLibraryScripts);
             dgvLibraryScripts.BringToFront();
 
-            // Menu kontekstowe drzewa
             tvContextMenu = new ContextMenuStrip();
             tvContextMenu.Items.Add("Neues Album", null, TvContext_AddAlbum);
             tvContextMenu.Items.Add("Album umbenennen", null, TvContext_RenameAlbum);
@@ -409,18 +402,15 @@ namespace PowerShellAnalyzer
             };
             tvAlbums.AfterLabelEdit += TvAlbums_AfterLabelEdit;
 
-            // Menu kontekstowe tabeli biblioteki (teraz w drzewie)
             libraryGridContextMenu = new ContextMenuStrip();
             libraryGridContextMenu.Items.Add("Skript öffnen", null, LibGridContext_OpenScript);
             libraryGridContextMenu.Items.Add(new ToolStripSeparator());
             libraryGridContextMenu.Items.Add("Skript umbenennen (virtuell)", null, LibGridContext_Rename);
             libraryGridContextMenu.Items.Add("Aus Album entfernen", null, LibGridContext_Remove);
 
-            // Menu kontekstowe glownej tabeli (Analyse) 
             gridContextMenu.Items.Insert(0, new ToolStripSeparator());
             var libItem = new ToolStripMenuItem("Zur Bibliothek hinzufügen");
             gridContextMenu.Items.Insert(0, libItem);
-
             libItem.Click += ContextMenu_AddToLibrary;
 
             var renameItem = new ToolStripMenuItem("Zur Umbenennung hinzufügen");
@@ -440,10 +430,8 @@ namespace PowerShellAnalyzer
         {
             tvAlbums.Nodes.Clear();
             var dt = DatabaseHelper.GetAlbums();
-
             var nodes = new Dictionary<int, TreeNode>();
 
-            // Pierwszy przebieg: Tworzenie wszystkich węzłów
             foreach (System.Data.DataRow row in dt.Rows)
             {
                 int id = Convert.ToInt32(row["Id"]);
@@ -452,7 +440,6 @@ namespace PowerShellAnalyzer
                 nodes[id] = node;
             }
 
-            // Drugi przebieg: Budowanie drzewa
             foreach (System.Data.DataRow row in dt.Rows)
             {
                 int id = Convert.ToInt32(row["Id"]);
@@ -470,7 +457,6 @@ namespace PowerShellAnalyzer
                 }
             }
 
-            // Trzeci przebieg: Skrypty do węzłów
             foreach (var albumId in nodes.Keys)
             {
                 var scriptsDt = DatabaseHelper.GetScriptsInAlbum(albumId);
@@ -486,8 +472,6 @@ namespace PowerShellAnalyzer
             tvAlbums.ExpandAll();
         }
 
-        // --- TREEVIEW EVENTS ---
-
         private void TvAlbums_MouseDown(object sender, MouseEventArgs e)
         {
             if (e.Button == MouseButtons.Right)
@@ -499,11 +483,11 @@ namespace PowerShellAnalyzer
                 {
                     if (clickedNode.Tag is int)
                     {
-                        tvAlbums.ContextMenuStrip = tvContextMenu; // Menu albumu
+                        tvAlbums.ContextMenuStrip = tvContextMenu;
                     }
                     else if (clickedNode.Tag is string)
                     {
-                        tvAlbums.ContextMenuStrip = libraryGridContextMenu; // Menu skryptu
+                        tvAlbums.ContextMenuStrip = libraryGridContextMenu;
                     }
                 }
                 else
@@ -513,7 +497,7 @@ namespace PowerShellAnalyzer
             }
             else
             {
-                tvAlbums.ContextMenuStrip = null; // Brak menu przy innym kliknięciu
+                tvAlbums.ContextMenuStrip = null;
             }
         }
 
@@ -601,13 +585,13 @@ namespace PowerShellAnalyzer
 
                 if (draggedNode != null && targetNode != draggedNode && !ContainsNode(draggedNode, targetNode))
                 {
-                    if (draggedNode.Tag is int draggedAlbumId) // Moving Album
+                    if (draggedNode.Tag is int draggedAlbumId)
                     {
                         int? targetId = null;
                         if (targetNode != null && targetNode.Tag is int tId)
                             targetId = tId;
                         else if (targetNode != null && targetNode.Tag is string)
-                            targetId = targetNode.Parent?.Tag as int?; // If dropped on script, use parent album
+                            targetId = targetNode.Parent?.Tag as int?;
 
                         DatabaseHelper.UpdateAlbum(draggedAlbumId, draggedNode.Text, targetId);
 
@@ -623,25 +607,28 @@ namespace PowerShellAnalyzer
                             tvAlbums.Nodes.Add(draggedNode);
                         }
                     }
-                    else if (draggedNode.Tag is string scriptPath && draggedNode.Parent != null) // Moving Script
+                    else if (draggedNode.Tag is string scriptPath && draggedNode.Parent != null)
                     {
-                        int oldAlbumId = (int)draggedNode.Parent.Tag;
-                        int newAlbumId = -1;
-
-                        if (targetNode != null && targetNode.Tag is int targetAId)
-                            newAlbumId = targetAId;
-                        else if (targetNode != null && targetNode.Tag is string && targetNode.Parent != null)
-                            newAlbumId = (int)targetNode.Parent.Tag;
-
-                        if (newAlbumId != -1 && newAlbumId != oldAlbumId)
+                        // BEZPIECZNE POBIERANIE STARGO ID ALBUMU
+                        if (draggedNode.Parent.Tag is int oldAlbumId)
                         {
-                            DatabaseHelper.RemoveScriptFromAlbum(scriptPath, oldAlbumId);
-                            DatabaseHelper.AddScriptToAlbum(scriptPath, newAlbumId);
+                            int newAlbumId = -1;
 
-                            draggedNode.Remove();
-                            var destNode = (targetNode.Tag is int) ? targetNode : targetNode.Parent;
-                            destNode.Nodes.Add(draggedNode);
-                            destNode.Expand();
+                            if (targetNode != null && targetNode.Tag is int targetAId)
+                                newAlbumId = targetAId;
+                            else if (targetNode != null && targetNode.Tag is string && targetNode.Parent != null)
+                                newAlbumId = (targetNode.Parent.Tag is int parentId) ? parentId : -1;
+
+                            if (newAlbumId != -1 && newAlbumId != oldAlbumId)
+                            {
+                                DatabaseHelper.RemoveScriptFromAlbum(scriptPath, oldAlbumId);
+                                DatabaseHelper.AddScriptToAlbum(scriptPath, newAlbumId);
+
+                                draggedNode.Remove();
+                                var destNode = (targetNode.Tag is int) ? targetNode : targetNode.Parent;
+                                destNode.Nodes.Add(draggedNode);
+                                destNode.Expand();
+                            }
                         }
                     }
                 }
@@ -670,7 +657,6 @@ namespace PowerShellAnalyzer
                     string newName = e.Label.Replace("📄 ", "");
                     DatabaseHelper.UpdateScriptFileName(scriptPath, newName);
 
-                    // Update grid if found
                     foreach (DataGridViewRow row in dgvScripts.Rows)
                     {
                         if (row.Cells["Path"].Value?.ToString() == scriptPath)
@@ -741,7 +727,7 @@ namespace PowerShellAnalyzer
 
                         DatabaseHelper.DeleteScriptData(path);
                         dgvScripts.Rows.Remove(row);
-                        LoadAlbums(); // Refresh library
+                        LoadAlbums();
                         MessageBox.Show("Skript wurde erfolgreich gelöscht.", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     }
                     catch (Exception ex)
@@ -786,12 +772,12 @@ namespace PowerShellAnalyzer
         {
             if (tvAlbums.SelectedNode != null)
             {
-                if (MessageBox.Show("Möchten Sie dieses Album wirklich löschen? Alle Unteralben będą równieź usunięte. Es werden keine Skripte von der Festplatte gelöscht.", "Album löschen", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
+                if (MessageBox.Show("Möchten Sie dieses Album wirklich löschen? Alle Unteralben werden ebenfalls gelöscht. Es werden keine Skripte von der Festplatte gelöscht.", "Album löschen", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
                 {
                     int id = (int)tvAlbums.SelectedNode.Tag;
                     DatabaseHelper.DeleteAlbum(id);
                     tvAlbums.SelectedNode.Remove();
-                    RefreshAllScriptIcons(); // Because some scripts might have lost their library assigned status
+                    RefreshAllScriptIcons();
                 }
             }
         }
@@ -814,18 +800,15 @@ namespace PowerShellAnalyzer
                 {
                     row.Cells["Select"].Value = isAnyUnchecked;
                 }
-                dgvScripts.EndEdit(); // Force apply changes
+                dgvScripts.EndEdit();
             }
         }
-
-        // --- GRID EVENTS AND DATA ---
 
         private void ContextMenu_AddToRename(object sender, EventArgs e)
         {
             int addedCount = 0;
-
-            // Collect rows to process: first check if any rows have been checked.
             var rowsToProcess = new List<DataGridViewRow>();
+
             foreach (DataGridViewRow row in dgvScripts.Rows)
             {
                 if (Convert.ToBoolean(row.Cells["Select"].Value))
@@ -834,7 +817,6 @@ namespace PowerShellAnalyzer
                 }
             }
 
-            // Fallback: If no rows are checked, use standard multiselect
             if (rowsToProcess.Count == 0 && dgvScripts.SelectedRows.Count > 0)
             {
                 foreach (DataGridViewRow row in dgvScripts.SelectedRows)
@@ -851,7 +833,6 @@ namespace PowerShellAnalyzer
 
                 if (!string.IsNullOrEmpty(id) && !string.IsNullOrEmpty(path))
                 {
-                    // Check if already in the rename grid
                     bool alreadyExists = false;
                     foreach (DataGridViewRow r in dgvRename.Rows)
                     {
@@ -900,7 +881,7 @@ namespace PowerShellAnalyzer
                 if (!string.IsNullOrEmpty(currentProposed)) continue;
 
                 string path = row.Cells["Path"].Value.ToString();
-                var dbInfo = DatabaseHelper.GetScriptInfo(path); // Has Status, Description
+                var dbInfo = DatabaseHelper.GetScriptInfo(path);
                 string description = dbInfo.Description;
 
                 if (string.IsNullOrWhiteSpace(description) || description.Length < 10)
@@ -914,7 +895,6 @@ namespace PowerShellAnalyzer
                     row.Cells["ProposedName"].Value = "⏳ Generiere...";
                     string aiName = await AIEngine.AnalyzeRenameAsync(description, keyToUse, model);
 
-                    // Cleanup and format string (ID_Name.ps1)
                     string cleanAiName = aiName.Replace(".ps1", "").Trim();
                     string id = row.Cells["Id"].Value.ToString();
                     string proposedName = $"{id}_{cleanAiName}.ps1";
@@ -988,8 +968,8 @@ namespace PowerShellAnalyzer
             if (changedCount > 0)
             {
                 MessageBox.Show($"{changedCount} Skripte wurden erfolgreich umbenannt.", "Umbenennen", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                ScanFoldersForScripts(); // Refresh analyze tab
-                LoadAlbums(); // Refresh library
+                ScanFoldersForScripts();
+                LoadAlbums();
             }
         }
 
@@ -1028,7 +1008,6 @@ namespace PowerShellAnalyzer
 
             if (rowsToProcess.Count > 0)
             {
-                // Quick album picker dialog
                 var dt = DatabaseHelper.GetAlbums();
                 if (dt.Rows.Count == 0)
                 {
@@ -1078,7 +1057,6 @@ namespace PowerShellAnalyzer
                             string path = row.Cells["Path"].Value?.ToString();
                             if (string.IsNullOrEmpty(path)) continue;
 
-                            // Skrypt musi istnieć w tabeli Scripts, aby INNER JOIN zadziałał w bibliotece
                             string fileName = row.Cells["FileName"].Value?.ToString() ?? "Unknown";
                             if (fileName.StartsWith("📘 "))
                                 fileName = fileName.Substring(3);
@@ -1088,11 +1066,11 @@ namespace PowerShellAnalyzer
                             DatabaseHelper.SaveScript(path, fileName, status, dbInfo.Description);
 
                             DatabaseHelper.AddScriptToAlbum(path, targetAlbumId);
-                            row.Cells["Select"].Value = false; // Odznacz checkbox po dodaniu
+                            row.Cells["Select"].Value = false;
                         }
                         MessageBox.Show("Skripte wurden zum Album hinzugefügt.", "Erfolg", MessageBoxButtons.OK, MessageBoxIcon.Information);
                         RefreshAllScriptIcons();
-                        LoadAlbums(); // <-- odswiezamy cale drzewo zeby zaladowaly sie wezly skryptow
+                        LoadAlbums();
                         picker.Close();
                     }
                     else MessageBox.Show("Bitte wählen Sie ein Album aus.", "Info", MessageBoxButtons.OK, MessageBoxIcon.Warning);
@@ -1111,7 +1089,6 @@ namespace PowerShellAnalyzer
                 string fileName = row.Cells["FileName"].Value.ToString();
                 bool inLib = DatabaseHelper.IsScriptInLibrary(path);
 
-                // Clean current icon
                 if (fileName.StartsWith("📘 "))
                     fileName = fileName.Substring(3);
 
@@ -1192,17 +1169,13 @@ namespace PowerShellAnalyzer
             cmbModels.Items.AddRange(new string[] {
                 "OpenAI: gpt-4o-mini",
                 "OpenAI: gpt-4o",
-                "Gemini: Gemini 2.5 Flash-Lite",
-                "Gemini: Gemini 2.5 Flash",
-                "Gemini: Gemini 2.5 Pro",
-                "Gemini: Gemini 3 Flash Preview"
+                "Gemini: Gemini 3.5 Flash-Lite",
+                "Gemini: Gemini 3.5 Flash",
+                "Gemini: Gemini 3.1 Pro"
             });
 
-            // Domyślnie ustawiamy pozycję na index 3 (Gemini 2.5 Flash) - najlepszy stosunek ceny do jakości do analizy kodu! 😎
             cmbModels.SelectedIndex = 2;
         }
-
-        // --- OBSŁUGA PLIKÓW I ŹRÓDEŁ ---
 
         private void BtnAddSource_Click(object sender, EventArgs e)
         {
@@ -1210,20 +1183,15 @@ namespace PowerShellAnalyzer
             {
                 using (FolderBrowserDialog fbd = new FolderBrowserDialog())
                 {
-                    // Tłumaczenie na niemiecki
                     fbd.Description = "Bitte wählen Sie einen Ordner mit PowerShell-Skripten aus:";
                     fbd.ShowNewFolderButton = false;
 
-                    // 'this' wymusza, by okienko było ZAWSZE na wierzchu naszej aplikacji
                     if (fbd.ShowDialog(this) == DialogResult.OK)
                     {
                         if (!lstSources.Items.Contains(fbd.SelectedPath))
                         {
                             lstSources.Items.Add(fbd.SelectedPath);
-
-                            // NOWOŚĆ: Zapisujemy ścieżkę do bazy SQLite
                             DatabaseHelper.SaveSource(fbd.SelectedPath);
-
                             ScanFoldersForScripts();
                         }
                     }
@@ -1314,9 +1282,9 @@ namespace PowerShellAnalyzer
             }
 
             LogToProtocol("Starte Suche nach Duplikaten in der Bibliothek...");
-            txtProtocol.Refresh(); // <-- Dodano odświeżenie kontrolki, aby tekst od razu się ukazał
+            txtProtocol.Refresh();
             lblStatusInfo.Text = "Berechne Ähnlichkeiten...";
-            Application.DoEvents(); // Pozwala na zrenderowanie teksu z paska stanu przed wielką pętlą
+            Application.DoEvents();
 
             var scriptsToAnalyze = new List<ScriptSimilarityInfo>();
             foreach (DataGridViewRow row in dgvScripts.Rows)
@@ -1359,22 +1327,37 @@ namespace PowerShellAnalyzer
 
             var loadedScripts = new List<(string file, string fileName, string status, string id, bool isNew)>();
 
-            foreach (string folderPath in lstSources.Items)
-            {
-                if (Directory.Exists(folderPath))
-                {
-                    // Szukamy plików .ps1, w tym w podfolderach
-                    string[] psFiles = Directory.GetFiles(folderPath, "*.ps1", SearchOption.AllDirectories);
+            // Pobieramy listę folderów z UI, ale wyszukiwanie plików robimy asynchronicznie
+            var folders = lstSources.Items.Cast<string>().ToList();
 
-                    foreach (string file in psFiles)
+            await Task.Run(() =>
+            {
+                foreach (string folderPath in folders)
+                {
+                    if (Directory.Exists(folderPath))
                     {
-                        string fileName = Path.GetFileName(file);
-                        var dbInfo = DatabaseHelper.GetOrInitializeScriptInfo(file, fileName);
-                        string id = dbInfo.ScriptId.ToString("D4");
-                        loadedScripts.Add((file, fileName, dbInfo.Status, id, dbInfo.IsNew));
+                        try
+                        {
+                            string[] psFiles = Directory.GetFiles(folderPath, "*.ps1", SearchOption.AllDirectories);
+
+                            foreach (string file in psFiles)
+                            {
+                                string fileName = Path.GetFileName(file);
+                                var dbInfo = DatabaseHelper.GetOrInitializeScriptInfo(file, fileName);
+                                string id = dbInfo.ScriptId.ToString("D4");
+                                lock (loadedScripts)
+                                {
+                                    loadedScripts.Add((file, fileName, dbInfo.Status, id, dbInfo.IsNew));
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            LogToProtocol($"Fehler beim Scannen von {folderPath}: {ex.Message}");
+                        }
                     }
                 }
-            }
+            });
 
             var sortedScripts = loadedScripts
                 .OrderByDescending(s => s.isNew || s.status == "⏳")
@@ -1386,7 +1369,7 @@ namespace PowerShellAnalyzer
                 int rowIndex = dgvScripts.Rows.Add(false, s.status, s.id, s.fileName, s.file);
                 if (s.isNew || s.status == "⏳")
                 {
-                    dgvScripts.Rows[rowIndex].DefaultCellStyle.BackColor = Color.FromArgb(230, 242, 255); // Lekki niebieski
+                    dgvScripts.Rows[rowIndex].DefaultCellStyle.BackColor = Color.FromArgb(230, 242, 255);
                 }
 
                 scriptsToAnalyze.Add(new ScriptSimilarityInfo
@@ -1398,34 +1381,30 @@ namespace PowerShellAnalyzer
             }
 
             lblStatusInfo.Text = $"Bereit. {dgvScripts.Rows.Count} Skripte gefunden. Berechne Ähnlichkeiten...";
-            LogToProtocol($"Berechne Ähnlichkeiten dla {dgvScripts.Rows.Count} Skryptów...");
+            LogToProtocol($"Berechne Ähnlichkeiten für {dgvScripts.Rows.Count} Skripte..."); // POPRAWIONO JĘZYK
             await _simManager.ComputeSimilaritiesAsync(scriptsToAnalyze);
             lblStatusInfo.Text = $"Bereit. {dgvScripts.Rows.Count} Skripte gefunden. Ähnlichkeiten berechnet.";
-            LogToProtocol($"Ähnlichkeitsberechnung zakończona. {_simManager.Scripts.Count(s => s.SimilarScriptsCount > 0)} Duplikate znalezione.");
+            LogToProtocol($"Ähnlichkeitsberechnung abgeschlossen. {_simManager.Scripts.Count(s => s.SimilarScriptsCount > 0)} Duplikate gefunden."); // POPRAWIONO JĘZYK
             RefreshDuplicateStatuses();
             UpdateSimilarityLabel();
             RefreshAllScriptIcons();
         }
 
-        // --- GLOBALNA ANALIZA I KOD PIN ---
-
         private async void BtnAnalyzeGlobal_Click(object sender, EventArgs e)
         {
-            // Wyciągamy model i dobieramy odpowiedni klucz
             string model = cmbModels.Text;
             string keyToUse = "";
 
             if (model.StartsWith("Gemini")) keyToUse = apiKeyGemini;
             else if (model.StartsWith("OpenAI")) keyToUse = apiKeyOpenAI;
+            else if (model.StartsWith("Claude")) keyToUse = apiKeyClaude; // DODANO Claude
 
             if (string.IsNullOrEmpty(keyToUse))
             {
-                MessageBox.Show($"Bitte konfigurieren Sie zuerst den API-Key dla {model.Split(':')[0]}!", "Fehler", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show($"Bitte konfigurieren Sie zuerst den API-Key für {model.Split(':')[0]}!", "Fehler", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
-            // Zbieramy skrypty, które są zaznaczone ptaszkiem (☑) 
-            // Jeśli żaden nie jest zaznaczony, zapytamy, czy skanować całą bibliotekę
             var rowsToAnalyze = new List<DataGridViewRow>();
             bool isManualSelection = false;
             foreach (DataGridViewRow row in dgvScripts.Rows)
@@ -1439,7 +1418,6 @@ namespace PowerShellAnalyzer
 
             if (rowsToAnalyze.Count == 0)
             {
-                // Globalny skan wszystkiego
                 string inputPin = Microsoft.VisualBasic.Interaction.InputBox(
                     "Sie haben keine einzelnen Skripte ausgewählt. Um ALLE Skripte zu analysieren, geben Sie den PIN (8203) ein:", "Sicherheitsüberprüfung", "");
 
@@ -1454,23 +1432,22 @@ namespace PowerShellAnalyzer
                 }
             }
 
-            LogToProtocol($"Starte Massenalyse dla {rowsToAnalyze.Count} Skryptów...");
-            btnAnalyze.Enabled = false; // Blokujemy przycisk na czas analizy
+            LogToProtocol($"Starte Massenanalyse für {rowsToAnalyze.Count} Skripte..."); // POPRAWIONO JĘZYK
+            btnAnalyze.Enabled = false;
 
             foreach (DataGridViewRow row in rowsToAnalyze)
             {
                 string path = row.Cells["Path"].Value.ToString();
                 string fileName = row.Cells["FileName"].Value.ToString();
 
-                // Sprawdzamy, czy ten plik nie ma już statusu "OK" (żeby nie tracić kasy z API)
                 string currentStatus = row.Cells["Status"].Value.ToString();
                 if (isManualSelection)
                 {
-                    if (currentStatus == "🟢") continue; // Pozwalamy na analizę duplikatów, jeśli ręcznie zaznaczone
+                    if (currentStatus == "🟢") continue;
                 }
                 else
                 {
-                    if (currentStatus == "🟢" || currentStatus == "📑") continue; // Przy skanie całego folderu ignorujemy zarówno 🟢 jak i duplikaty 📑
+                    if (currentStatus == "🟢" || currentStatus == "📑") continue;
                 }
 
                 LogToProtocol($"Analysiere: {fileName}...");
@@ -1483,7 +1460,7 @@ namespace PowerShellAnalyzer
 
                     DatabaseHelper.SaveScript(path, fileName, "🟢", aiResponse);
                     row.Cells["Status"].Value = "🟢";
-                    row.Cells["Select"].Value = false; // Odznaczamy ptaszka po sukcesie
+                    row.Cells["Select"].Value = false;
                     LogToProtocol($"Fertig: {fileName}");
                 }
                 catch (Exception ex)
@@ -1492,27 +1469,20 @@ namespace PowerShellAnalyzer
                     LogToProtocol($"Fehler bei {fileName}: {ex.Message}");
                 }
 
-                // Małe opóźnienie, żeby nie zalać API żądaniami w ułamku sekundy
                 await Task.Delay(500);
             }
 
             btnAnalyze.Enabled = true;
-            LogToProtocol("Massenalyse beendet.");
-            MessageBox.Show("Die Analyse została zakończona!", "Erfolg", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            LogToProtocol("Massenanalyse beendet.");
+            MessageBox.Show("Die Analyse wurde erfolgreich beendet!", "Erfolg", MessageBoxButtons.OK, MessageBoxIcon.Information); // POPRAWIONO JĘZYK
         }
-
-        // --- MENU POD PRAWYM PRZYCISKIEM MYSZY ---
 
         private void DgvScripts_CellMouseUp(object sender, DataGridViewCellMouseEventArgs e)
         {
-            // Reakcja tylko na prawy przycisk myszy i poprawne wiersze (ignoruj nagłówki)
             if (e.Button == MouseButtons.Right && e.RowIndex >= 0)
             {
-                // Zaznacz kliknięty wiersz
                 dgvScripts.ClearSelection();
                 dgvScripts.Rows[e.RowIndex].Selected = true;
-
-                // Pokaż menu dokładnie w miejscu kursora
                 gridContextMenu.Show(Cursor.Position);
             }
         }
@@ -1525,12 +1495,12 @@ namespace PowerShellAnalyzer
                 string path = row.Cells["Path"].Value.ToString();
                 string fileName = row.Cells["FileName"].Value.ToString();
 
-                // Wyciągamy model i dobieramy odpowiedni klucz
                 string model = cmbModels.Text;
                 string keyToUse = "";
 
                 if (model.StartsWith("Gemini")) keyToUse = apiKeyGemini;
                 else if (model.StartsWith("OpenAI")) keyToUse = apiKeyOpenAI;
+                else if (model.StartsWith("Claude")) keyToUse = apiKeyClaude;
 
                 if (string.IsNullOrEmpty(keyToUse))
                 {
@@ -1541,19 +1511,15 @@ namespace PowerShellAnalyzer
                 if (!File.Exists(path)) return;
 
                 LogToProtocol($"Starte Analyse dla: {fileName} z {model}...");
-                row.Cells["Status"].Value = "⏳"; // Ikonka ładowania
+                row.Cells["Status"].Value = "⏳";
 
                 try
                 {
-                    string scriptContent = File.ReadAllText(path); // Czytamy plik z dysku
-
-                    // WYSYŁAMY DO AI (Czeka, nie blokując interfejsu)
+                    string scriptContent = File.ReadAllText(path);
                     string aiResponse = await AIEngine.AnalyzeScriptAsync(scriptContent, keyToUse, model);
 
-                    // Zapisujemy wynik do naszej bazy SQLite
                     DatabaseHelper.SaveScript(path, fileName, "🟢", aiResponse);
 
-                    // Aktualizujemy tabelę i opis w interfejsie
                     row.Cells["Status"].Value = "🟢";
                     txtDescriptionRight.Text = aiResponse;
                     LogToProtocol($"Analiza dla {fileName} zakończona sukcesem.");
@@ -1576,7 +1542,6 @@ namespace PowerShellAnalyzer
                 string currentStatus = row.Cells["Status"].Value.ToString();
                 string currentDesc = row.Cells["Remarks"].Value?.ToString() ?? "";
 
-                // Dynamiczne okienko edycji
                 Form editForm = new Form()
                 {
                     Width = 600,
@@ -1612,12 +1577,8 @@ namespace PowerShellAnalyzer
 
                 btnSave.Click += (s, args) =>
                 {
-                    // Zapis do SQLite
                     DatabaseHelper.SaveScript(path, fileName, currentStatus, txtDesc.Text);
-
-                    // Aktualizacja w tabeli UI
                     row.Cells["Remarks"].Value = txtDesc.Text;
-
                     editForm.Close();
                 };
 
@@ -1634,7 +1595,6 @@ namespace PowerShellAnalyzer
                 string path = dgvScripts.SelectedRows[0].Cells["Path"].Value.ToString();
                 if (File.Exists(path))
                 {
-                    // Otwiera plik w edytorze PowerShell ISE
                     Process.Start(new ProcessStartInfo("powershell_ise.exe", $"\"{path}\"") { UseShellExecute = true });
                 }
             }
@@ -1647,10 +1607,7 @@ namespace PowerShellAnalyzer
                 string path = dgvScripts.SelectedRows[0].Cells["Path"].Value?.ToString();
                 if (!string.IsNullOrEmpty(path))
                 {
-                    // Skopiowanie tekstu do schowka Windows
                     Clipboard.SetText(path);
-
-                    // Wyświetlamy potwierdzenie na dolnym pasku zamiast wyskakującego okienka (żeby nie irytować)
                     lblStatusInfo.Text = "Pfad in die Zwischenablage kopiert!";
                 }
             }
@@ -1721,14 +1678,12 @@ namespace PowerShellAnalyzer
             }
         }
 
-        // --- WYSZUKIWARKA (FILTR NA ŻYWO) ---
-
         private void TxtSearch_TextChanged(object sender, EventArgs e)
         {
             string filterText = txtSearch.Text.ToLower();
 
             dgvScripts.SuspendLayout();
-            dgvScripts.CurrentCell = null; // Unikamy błędu ukrywania aktualnie zaznaczonej komórki
+            dgvScripts.CurrentCell = null;
 
             CurrencyManager currencyManager = null;
             if (dgvScripts.DataSource != null)
@@ -1821,136 +1776,378 @@ namespace PowerShellAnalyzer
             }
         }
 
-        private void BtnApiKey_Click(object sender, EventArgs e)
+        private async void BtnApiKey_Click(object sender, EventArgs e)
         {
             using (Form f = new Form())
             {
-                f.Text = "Einstellungen";
-                f.Width = 500;
-                f.Height = 300;
+                f.Text = "Ustawienia i Modele API";
+                f.Width = 750;
+                f.Height = 550;
                 f.StartPosition = FormStartPosition.CenterParent;
                 f.FormBorderStyle = FormBorderStyle.FixedDialog;
                 f.MaximizeBox = false;
 
-                Label lblDb = new Label() { Text = "Datenbank:", Left = 20, Top = 20, Width = 120 };
-                TextBox txtDb = new TextBox() { Left = 150, Top = 20, Width = 180, Text = DatabaseHelper.DbFileName, ReadOnly = true };
+                // Główny kontener TabControl
+                TabControl tcSettings = new TabControl { Dock = DockStyle.Fill, Font = new Font("Segoe UI", 9.75F) };
+                f.Controls.Add(tcSettings);
 
-                Button btnOpenDb = new Button() { Text = "📂", Left = 340, Top = 18, Width = 40 };
-                Button btnSaveDb = new Button() { Text = "💾", Left = 390, Top = 18, Width = 40 };
+                // --- ZAKŁADKA 1: KLUCZE I BAZA ---
+                TabPage tpKeys = new TabPage("Klucze API i Baza danych");
+                tpKeys.BackColor = Color.White;
+                tcSettings.TabPages.Add(tpKeys);
+
+                Label lblDb = new Label() { Text = "Datenbank:", Left = 20, Top = 25, Width = 120 };
+                TextBox txtDb = new TextBox() { Left = 150, Top = 22, Width = 380, Text = DatabaseHelper.DbFileName, ReadOnly = true };
+                Button btnOpenDb = new Button() { Text = "📂", Left = 540, Top = 20, Width = 40 };
+                Button btnSaveDb = new Button() { Text = "💾", Left = 590, Top = 20, Width = 40 };
 
                 bool dbPathChanged = false;
                 bool copyDatabase = false;
 
-                btnOpenDb.Click += (s, args) =>
-                {
-                    using (OpenFileDialog ofd = new OpenFileDialog())
+                btnOpenDb.Click += (s, args) => {
+                    using (OpenFileDialog ofd = new OpenFileDialog { Filter = "SQLite Datenbank|*.sqlite|Alle Dateien|*.*" })
                     {
-                        ofd.Filter = "SQLite Datenbank|*.sqlite|Alle Dateien|*.*";
-                        ofd.Title = "Vorhandene Datenbank öffnen";
-                        if (ofd.ShowDialog() == DialogResult.OK)
-                        {
-                            txtDb.Text = ofd.FileName;
-                            dbPathChanged = true;
-                            copyDatabase = false; // Just reconnect
-                        }
+                        if (ofd.ShowDialog() == DialogResult.OK) { txtDb.Text = ofd.FileName; dbPathChanged = true; copyDatabase = false; }
+                    }
+                };
+                btnSaveDb.Click += (s, args) => {
+                    using (SaveFileDialog sfd = new SaveFileDialog { Filter = "SQLite Datenbank|*.sqlite", FileName = "scripts_db.sqlite" })
+                    {
+                        if (sfd.ShowDialog() == DialogResult.OK) { txtDb.Text = sfd.FileName; dbPathChanged = true; copyDatabase = true; }
                     }
                 };
 
-                btnSaveDb.Click += (s, args) =>
+                // Dostawcy API i ich klucze + Przyciski Test połączenia
+                Label lblOpenAI = new Label() { Text = "OpenAI API-Key:", Left = 20, Top = 75, Width = 120 };
+                TextBox txtOpenAI = new TextBox() { Left = 150, Top = 72, Width = 380, Text = apiKeyOpenAI, PasswordChar = '*' };
+                Button btnTestOpenAI = new Button() { Text = "Test połączenia", Left = 540, Top = 70, Width = 120, Height = 28 };
+
+                Label lblGemini = new Label() { Text = "Gemini API-Key:", Left = 20, Top = 125, Width = 120 };
+                TextBox txtGemini = new TextBox() { Left = 150, Top = 122, Width = 380, Text = apiKeyGemini, PasswordChar = '*' };
+                Button btnTestGemini = new Button() { Text = "Test połączenia", Left = 540, Top = 120, Width = 120, Height = 28 };
+
+                Label lblClaude = new Label() { Text = "Claude API-Key:", Left = 20, Top = 175, Width = 120 };
+                TextBox txtClaude = new TextBox() { Left = 150, Top = 172, Width = 380, Text = apiKeyClaude, PasswordChar = '*' };
+                Button btnTestClaude = new Button() { Text = "Test połączenia", Left = 540, Top = 170, Width = 120, Height = 28 };
+
+                // Funkcja pomocnicza do testowania połączenia (wykorzystuje istniejące metody Fetch)
+                async Task RunConnectionTest(string provider, string key, Func<string, Task<List<string>>> fetchMethod)
                 {
-                    using (SaveFileDialog sfd = new SaveFileDialog())
+                    if (string.IsNullOrWhiteSpace(key))
                     {
-                        sfd.Filter = "SQLite Datenbank|*.sqlite|Alle Dateien|*.*";
-                        sfd.FileName = "scripts_db.sqlite";
-                        sfd.Title = "Datenbank speichern unter";
-                        if (sfd.ShowDialog() == DialogResult.OK)
-                        {
-                            txtDb.Text = sfd.FileName;
-                            dbPathChanged = true;
-                            copyDatabase = true; // Needs copying
-                        }
+                        MessageBox.Show("Wprowadź klucz API przed testem!", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        return;
                     }
+                    Cursor.Current = Cursors.WaitCursor;
+                    try
+                    {
+                        var res = await fetchMethod(key.Trim());
+                        if (res != null && res.Count > 0)
+                            MessageBox.Show($"Połączenie z {provider} udane!\nAutoryzacja poprawna. Pobrano dostępną listę modeli.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        else
+                            MessageBox.Show($"Autoryzacja {provider} powiodła się, ale API nie zwróciło modeli.", "Uwaga", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show($"Błąd połączenia z {provider}:\n{ex.Message}", "Błąd połączenia", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                    finally
+                    {
+                        Cursor.Current = Cursors.Default;
+                    }
+                }
+
+                btnTestOpenAI.Click += async (s, args) => await RunConnectionTest("OpenAI", txtOpenAI.Text, FetchOpenAIModelsAsync);
+                btnTestGemini.Click += async (s, args) => await RunConnectionTest("Gemini", txtGemini.Text, FetchGeminiModelsAsync);
+                btnTestClaude.Click += async (s, args) => await RunConnectionTest("Claude", txtClaude.Text, FetchClaudeModelsAsync);
+
+                tpKeys.Controls.AddRange(new Control[] {
+            lblDb, txtDb, btnOpenDb, btnSaveDb,
+            lblOpenAI, txtOpenAI, btnTestOpenAI,
+            lblGemini, txtGemini, btnTestGemini,
+            lblClaude, txtClaude, btnTestClaude
+        });
+
+                // --- ZAKŁADKA 2: ULUBIONE MODELE ---
+                TabPage tpModels = new TabPage("Ulubione modele (Lista dropdown)");
+                tpModels.BackColor = Color.White;
+                tcSettings.TabPages.Add(tpModels);
+
+                Panel pnlModelsTop = new Panel { Dock = DockStyle.Top, Height = 50, BackColor = Color.FromArgb(245, 245, 245) };
+                Button btnFetchModels = new Button { Text = "🔄 Odśwież i pobierz wszystkie dostępne modele z API", Left = 15, Top = 10, Width = 400, Height = 30, BackColor = Color.SteelBlue, ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
+                btnFetchModels.FlatAppearance.BorderSize = 0;
+                pnlModelsTop.Controls.Add(btnFetchModels);
+                tpModels.Controls.Add(pnlModelsTop);
+
+                // Tabela modeli (Ulubione + Nazwa)
+                DataGridView dgvModels = new DataGridView
+                {
+                    Dock = DockStyle.Fill,
+                    AllowUserToAddRows = false,
+                    RowHeadersVisible = false,
+                    BackgroundColor = Color.White,
+                    SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                    AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
                 };
 
-                Label lblOpenAI = new Label() { Text = "OpenAI API-Key:", Left = 20, Top = 60, Width = 120 };
-                TextBox txtOpenAI = new TextBox() { Left = 150, Top = 60, Width = 280, Text = apiKeyOpenAI, PasswordChar = '*' };
+                var colFav = new DataGridViewCheckBoxColumn { Name = "IsFav", HeaderText = "★ Ulubiony", FillWeight = 25 };
+                var colName = new DataGridViewTextBoxColumn { Name = "ModelName", HeaderText = "Nazwa modelu API", ReadOnly = true, FillWeight = 75 };
+                dgvModels.Columns.AddRange(new DataGridViewColumn[] { colFav, colName });
+                tpModels.Controls.Add(dgvModels);
+                dgvModels.BringToFront();
 
-                Label lblGemini = new Label() { Text = "Gemini API-Key:", Left = 20, Top = 100, Width = 120 };
-                TextBox txtGemini = new TextBox() { Left = 150, Top = 100, Width = 280, Text = apiKeyGemini, PasswordChar = '*' };
+                // Ładowanie aktualnych zapisanych ulubionych do tabeli dgvModels jako stan startowy
+                var savedFavorites = DatabaseHelper.GetFavoriteModels();
+                foreach (var fav in savedFavorites)
+                {
+                    dgvModels.Rows.Add(true, fav);
+                }
 
-                Label lblClaude = new Label() { Text = "Claude API-Key:", Left = 20, Top = 140, Width = 120 };
-                TextBox txtClaude = new TextBox() { Left = 150, Top = 140, Width = 280, Text = apiKeyClaude, PasswordChar = '*' };
+                // Akcja pobierania i scalania modeli ze wszystkich aktywnych kluczy podanych w polach tekstowych
+                btnFetchModels.Click += async (s, args) => {
+                    btnFetchModels.Enabled = false;
+                    Cursor.Current = Cursors.WaitCursor;
 
-                Button btnOk = new Button() { Text = "OK", Left = 250, Top = 190, Width = 80, DialogResult = DialogResult.OK };
+                    var downloadedModels = new List<string>();
+                    if (!string.IsNullOrWhiteSpace(txtOpenAI.Text)) downloadedModels.AddRange(await FetchOpenAIModelsAsync(txtOpenAI.Text.Trim()));
+                    if (!string.IsNullOrWhiteSpace(txtGemini.Text)) downloadedModels.AddRange(await FetchGeminiModelsAsync(txtGemini.Text.Trim()));
+                    if (!string.IsNullOrWhiteSpace(txtClaude.Text)) downloadedModels.AddRange(await FetchClaudeModelsAsync(txtClaude.Text.Trim()));
+
+                    if (downloadedModels.Count == 0)
+                    {
+                        MessageBox.Show("Nie pobrano żadnych modeli. Upewnij się, że wprowadziłeś poprawne klucze API.", "Informacja", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        btnFetchModels.Enabled = true;
+                        Cursor.Current = Cursors.Default;
+                        return;
+                    }
+
+                    // Zapamiętaj co było zaznaczone przed odświeżeniem
+                    var currentlyChecked = new HashSet<string>();
+                    foreach (DataGridViewRow r in dgvModels.Rows)
+                    {
+                        if (Convert.ToBoolean(r.Cells["IsFav"].Value)) currentlyChecked.Add(r.Cells["ModelName"].Value.ToString());
+                    }
+
+                    dgvModels.Rows.Clear();
+                    foreach (var m in downloadedModels.Distinct())
+                    {
+                        bool wasFav = currentlyChecked.Contains(m) || savedFavorites.Contains(m);
+                        dgvModels.Rows.Add(wasFav, m);
+                    }
+
+                    MessageBox.Show($"Pomyślnie załadowano {downloadedModels.Distinct().Count()} unikalnych modeli z aktywnych API.\nZaznacz gwiazdką te, które mają być widoczne w oknie głównym.", "Pobieranie zakończone", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    btnFetchModels.Enabled = true;
+                    Cursor.Current = Cursors.Default;
+                };
+
+                // --- DOLNY PANEL Z PRZYCISKAMI ZAPISU ---
+                Panel pnlBottom = new Panel { Dock = DockStyle.Bottom, Height = 60, BackColor = Color.WhiteSmoke };
+                Button btnOk = new Button() { Text = "Zapisz", Left = 520, Top = 12, Width = 90, Height = 35, DialogResult = DialogResult.OK };
                 StylePrimaryButton(btnOk);
-                Button btnCancel = new Button() { Text = "Abbrechen", Left = 340, Top = 190, Width = 90, DialogResult = DialogResult.Cancel };
-                StyleSecondaryButton(btnCancel);
+                Button btnCancelSet = new Button() { Text = "Anuluj", Left = 620, Top = 12, Width = 90, Height = 35, DialogResult = DialogResult.Cancel };
+                StyleSecondaryButton(btnCancelSet);
 
-                f.Controls.Add(lblDb);
-                f.Controls.Add(txtDb);
-                f.Controls.Add(btnOpenDb);
-                f.Controls.Add(btnSaveDb);
-                f.Controls.Add(lblOpenAI);
-                f.Controls.Add(txtOpenAI);
-                f.Controls.Add(lblGemini);
-                f.Controls.Add(txtGemini);
-                f.Controls.Add(lblClaude);
-                f.Controls.Add(txtClaude);
-                f.Controls.Add(btnOk);
-                f.Controls.Add(btnCancel);
+                pnlBottom.Controls.AddRange(new Control[] { btnOk, btnCancelSet });
+                f.Controls.Add(pnlBottom);
+                pnlBottom.BringToFront();
 
                 f.AcceptButton = btnOk;
-                f.CancelButton = btnCancel;
+                f.CancelButton = btnCancelSet;
 
+                // --- PROCES ZAPISYWANIA USTAWIEŃ ---
                 if (f.ShowDialog() == DialogResult.OK)
                 {
+                    // 1. Zmiana ścieżki bazy danych (jeśli zmodyfikowano)
                     string oldDbPath = DatabaseHelper.DbFileName;
                     if (dbPathChanged && oldDbPath != txtDb.Text)
                     {
                         if (copyDatabase)
                         {
-                            try
-                            {
-                                File.Copy(oldDbPath, txtDb.Text, true);
-                            }
-                            catch (Exception ex)
-                            {
-                                MessageBox.Show("Fehler beim Kopieren der Datenbank: " + ex.Message, "Fehler", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                                return;
-                            }
+                            try { File.Copy(oldDbPath, txtDb.Text, true); }
+                            catch (Exception ex) { MessageBox.Show("Fehler beim Kopieren der Datenbank: " + ex.Message, "Fehler", MessageBoxButtons.OK, MessageBoxIcon.Error); return; }
                         }
-
                         DatabaseHelper.ChangeDatabasePath(txtDb.Text);
-                        lstSources.Items.Clear();
-                        dgvScripts.Rows.Clear();
-                        _simManager.Scripts.Clear();
-                        lblSimilarityData.Text = "-";
-                        LoadSavedSources();
-                        LoadAlbums();
-                        MessageBox.Show("Die Datenbank wurde erfolgreich gewechselt.", "Erfolg", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        lstSources.Items.Clear(); dgvScripts.Rows.Clear(); _simManager.Scripts.Clear(); lblSimilarityData.Text = "-";
+                        LoadSavedSources(); LoadAlbums();
                     }
 
+                    // 2. Zapis kluczy do bazy danych i zmiennych lokalnych
                     apiKeyOpenAI = txtOpenAI.Text;
                     apiKeyGemini = txtGemini.Text;
                     apiKeyClaude = txtClaude.Text;
-
                     DatabaseHelper.SaveSetting("OpenAI", apiKeyOpenAI);
                     DatabaseHelper.SaveSetting("Gemini", apiKeyGemini);
                     DatabaseHelper.SaveSetting("Claude", apiKeyClaude);
 
+                    // Aktualizacja etykiety statusu na głównym oknie
                     if (!string.IsNullOrWhiteSpace(apiKeyOpenAI) || !string.IsNullOrWhiteSpace(apiKeyGemini) || !string.IsNullOrWhiteSpace(apiKeyClaude))
                     {
-                        lblApiKeyStatus.Text = "Status: Schlüssel gespeichert";
-                        lblApiKeyStatus.ForeColor = Color.Green;
+                        lblApiKeyStatus.Text = "Status: Schlüssel gespeichert"; lblApiKeyStatus.ForeColor = Color.Green;
                     }
                     else
                     {
-                        lblApiKeyStatus.Text = "Status: Kein Schlüssel vorhanden";
-                        lblApiKeyStatus.ForeColor = Color.Red;
+                        lblApiKeyStatus.Text = "Status: Kein Schlüssel vorhanden"; lblApiKeyStatus.ForeColor = Color.Red;
                     }
+
+                    // 3. Zapis wybranych ULUBIONYCH modeli do bazy danych
+                    var selectedFavorites = new List<string>();
+                    foreach (DataGridViewRow row in dgvModels.Rows)
+                    {
+                        if (Convert.ToBoolean(row.Cells["IsFav"].Value))
+                        {
+                            selectedFavorites.Add(row.Cells["ModelName"].Value.ToString());
+                        }
+                    }
+                    DatabaseHelper.SaveFavoriteModels(selectedFavorites);
+
+                    // 4. Przeładowanie głównego ComboBoxa na podstawie nowej listy ulubionych
+                    await LoadActualModelsAsync();
                 }
             }
         }
+
+        private async Task<List<string>> FetchOpenAIModelsAsync(string apiKey)
+        {
+            var models = new List<string>();
+            try
+            {
+                using var client = new HttpClient();
+                client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
+
+                var response = await client.GetAsync("https://api.openai.com/v1/models");
+                if (response.IsSuccessStatusCode)
+                {
+                    var json = await response.Content.ReadAsStringAsync();
+                    using var doc = JsonDocument.Parse(json);
+                    if (doc.RootElement.TryGetProperty("data", out var dataProp))
+                    {
+                        foreach (var model in dataProp.EnumerateArray())
+                        {
+                            string id = model.GetProperty("id").GetString();
+                            if (id.Contains("gpt") || id.Contains("o1") || id.Contains("o3"))
+                            {
+                                models.Add($"OpenAI: {id}");
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                LogToProtocol($"Fehler beim Laden der OpenAI-Modelle: {ex.Message}");
+            }
+            return models;
+        }
+
+        private async Task<List<string>> FetchGeminiModelsAsync(string apiKey)
+        {
+            var models = new List<string>();
+            try
+            {
+                using var client = new HttpClient();
+                var response = await client.GetAsync($"https://generativelanguage.googleapis.com/v1beta/models?key={apiKey}");
+                if (response.IsSuccessStatusCode)
+                {
+                    var json = await response.Content.ReadAsStringAsync();
+                    using var doc = JsonDocument.Parse(json);
+                    if (doc.RootElement.TryGetProperty("models", out var modelsProp))
+                    {
+                        foreach (var model in modelsProp.EnumerateArray())
+                        {
+                            string name = model.GetProperty("name").GetString();
+                            string cleanName = name.Replace("models/", "");
+
+                            bool supportsText = false;
+                            if (model.TryGetProperty("supportedGenerationMethods", out var methods))
+                            {
+                                foreach (var method in methods.EnumerateArray())
+                                {
+                                    if (method.GetString() == "generateContent")
+                                    {
+                                        supportsText = true;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            if (supportsText)
+                            {
+                                models.Add($"Gemini: {cleanName}");
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                LogToProtocol($"Fehler beim Laden der Gemini-Modelle: {ex.Message}");
+            }
+            return models;
+        }
+
+        private async Task<List<string>> FetchClaudeModelsAsync(string apiKey)
+        {
+            var models = new List<string>();
+            try
+            {
+                using var client = new HttpClient();
+                client.DefaultRequestHeaders.Add("x-api-key", apiKey);
+                client.DefaultRequestHeaders.Add("anthropic-version", "2023-06-01");
+
+                var response = await client.GetAsync("https://api.anthropic.com/v1/models");
+                if (response.IsSuccessStatusCode)
+                {
+                    var json = await response.Content.ReadAsStringAsync();
+                    using var doc = JsonDocument.Parse(json);
+                    if (doc.RootElement.TryGetProperty("data", out var dataProp))
+                    {
+                        foreach (var model in dataProp.EnumerateArray())
+                        {
+                            string id = model.GetProperty("id").GetString();
+                            models.Add($"Claude: {id}");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                LogToProtocol($"Fehler beim Laden der Claude-Modelle: {ex.Message}");
+            }
+            return models;
+        }
+
+        private async Task LoadActualModelsAsync()
+        {
+            LogToProtocol("Lade konfigurierte Favoriten-Modelle...");
+
+            // Pobranie ulubionych z bazy danych
+            var favoriteModels = DatabaseHelper.GetFavoriteModels();
+
+            // Jeśli użytkownik nie wybrał jeszcze żadnych ulubionych, załaduj listę podstawową (fallback)
+            if (favoriteModels.Count == 0)
+            {
+                favoriteModels.AddRange(new string[] {
+            "OpenAI: gpt-4o-mini",
+            "OpenAI: gpt-4o",
+            "Gemini: gemini-1.5-flash",
+            "Gemini: gemini-1.5-pro",
+            "Claude: claude-3-5-sonnet-latest"
+        });
+            }
+
+            cmbModels.Items.Clear();
+            foreach (var model in favoriteModels)
+            {
+                cmbModels.Items.Add(model);
+            }
+
+            if (cmbModels.Items.Count > 0)
+            {
+                cmbModels.SelectedIndex = 0;
+            }
+            LogToProtocol("Modellliste wurde mit Favoriten aktualisiert.");
+        }
+
         private void DgvScripts_CellPainting(object sender, DataGridViewCellPaintingEventArgs e)
         {
             if (e.RowIndex >= 0 && e.ColumnIndex == dgvScripts.Columns["Status"].Index)
@@ -2014,7 +2211,6 @@ namespace PowerShellAnalyzer
 
         private void MainForm_Load(object sender, EventArgs e)
         {
-
         }
     }
 }

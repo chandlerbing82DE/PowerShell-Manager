@@ -10,6 +10,9 @@
     <ApplicationIcon>symbol.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="C:\Projekte_VS\PowerShellScriptAnalyzer\MainForm.cs" Link="MainForm.cs" />
+  </ItemGroup>
+  <ItemGroup>
     <Content Include="symbol.ico">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>

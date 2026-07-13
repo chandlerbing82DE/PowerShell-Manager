@@ -77,6 +77,14 @@ namespace PowerShellAnalyzer
                 using (var command = new SQLiteCommand(createTableQuery, connection))
                     command.ExecuteNonQuery();
 
+                // TABELA NA ULUBIONE MODELE API
+                string createFavModelsQuery = @"
+    CREATE TABLE IF NOT EXISTS FavoriteModels (
+        ModelName TEXT PRIMARY KEY
+    )";
+                using (var command = new SQLiteCommand(createFavModelsQuery, connection))
+                    command.ExecuteNonQuery();
+
                 // NOWA TABELA NA FOLDERY
                 string createSourcesQuery = "CREATE TABLE IF NOT EXISTS Sources (FolderPath TEXT PRIMARY KEY)";
                 using (var command = new SQLiteCommand(createSourcesQuery, connection))
@@ -317,6 +325,63 @@ namespace PowerShellAnalyzer
                 }
             }
         }
+
+        // Pobiera listę wszystkich ulubionych modeli
+        public static System.Collections.Generic.List<string> GetFavoriteModels()
+        {
+            var favorites = new System.Collections.Generic.List<string>();
+            using (var connection = new SQLiteConnection(ConnectionString))
+            {
+                connection.Open();
+                string query = "SELECT ModelName FROM FavoriteModels ORDER BY ModelName";
+                using (var command = new SQLiteCommand(query, connection))
+                {
+                    using (var reader = command.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            favorites.Add(reader["ModelName"].ToString());
+                        }
+                    }
+                }
+            }
+            return favorites;
+        }
+
+        // Nadpisuje listę ulubionych modeli nową selekcją
+        public static void SaveFavoriteModels(System.Collections.Generic.List<string> favoriteModels)
+        {
+            using (var connection = new SQLiteConnection(ConnectionString))
+            {
+                connection.Open();
+                using (var transaction = connection.BeginTransaction())
+                {
+                    try
+                    {
+                        // Czyszczenie starej listy
+                        using (var deleteCmd = new SQLiteCommand("DELETE FROM FavoriteModels", connection))
+                            deleteCmd.ExecuteNonQuery();
+
+                        // Wstawianie nowych ulubionych
+                        foreach (var model in favoriteModels)
+                        {
+                            using (var insertCmd = new SQLiteCommand("INSERT INTO FavoriteModels (ModelName) VALUES (@Model)", connection))
+                            {
+                                insertCmd.Parameters.AddWithValue("@Model", model);
+                                insertCmd.ExecuteNonQuery();
+                            }
+                        }
+                        transaction.Commit();
+                    }
+                    catch
+                    {
+                        transaction.Rollback();
+                        throw;
+                    }
+                }
+            }
+        }
+
 
         // Pobiera zapisane foldery z bazy
         public static System.Collections.Generic.List<string> GetSources()
